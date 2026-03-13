@@ -1,0 +1,551 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.db{padding:1rem 0}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.hdr-title{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.hdr-sub{font-size:13px;color:var(--color-text-secondary);margin-top:3px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters select{font-size:12px;padding:4px 8px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.kpi{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.kpi-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em}
+.kpi-val{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.kpi-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.chart-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.chart-sub{font-size:11px;color:var(--color-text-secondary);margin-bottom:12px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;font-size:11px;color:var(--color-text-secondary)}
+.leg-dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:3px}
+.tab-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tab{font-size:12px;padding:4px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer}
+.tab.active{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+</style>
+<div class="db">
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Luxury Housing Sales Analysis — Bengaluru</div>
+    <div class="hdr-sub">101,000 transactions · 11 builders · 16 micro-markets · FY2023 – FY2025</div>
+  </div>
+  <div class="filters">
+    <select id="fBuilder"><option value="">All builders</option></select>
+    <select id="fMarket"><option value="">All markets</option></select>
+    <select id="fQuarter"><option value="">All quarters</option></select>
+    <select id="fConfig"><option value="">All configs</option></select>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">Total units</div><div class="kpi-val" id="kTot">101,000</div><div class="kpi-sub">across all markets</div></div>
+  <div class="kpi"><div class="kpi-label">Total revenue</div><div class="kpi-val" id="kRev">₹1,27,773 Cr</div><div class="kpi-sub">cumulative ticket value</div></div>
+  <div class="kpi"><div class="kpi-label">Avg ticket size</div><div class="kpi-val" id="kAvg">₹12.65 Cr</div><div class="kpi-sub">per unit</div></div>
+  <div class="kpi"><div class="kpi-label">Primary bookings</div><div class="kpi-val" id="kConv">50.0%</div><div class="kpi-sub">booking conversion rate</div></div>
+</div>
+
+<div class="tab-row" id="pageTab">
+  <button class="tab active" data-pg="0">Market trends</button>
+  <button class="tab" data-pg="1">Builder performance</button>
+  <button class="tab" data-pg="2">Amenity impact</button>
+  <button class="tab" data-pg="3">Booking conversion</button>
+  <button class="tab" data-pg="4">Config demand</button>
+  <button class="tab" data-pg="5">Sales channels</button>
+  <button class="tab" data-pg="6">Possession & buyers</button>
+</div>
+
+<div id="pg0" class="chart-page">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Quarterly booking trends by micro-market</div>
+      <div class="chart-sub">Total units booked per quarter across all micro-markets</div>
+      <div id="lg-trends" class="legend"></div>
+      <div style="position:relative;width:100%;height:280px"><canvas id="cTrends"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Revenue per quarter</div>
+      <div class="chart-sub">Total revenue (₹ Cr) across all markets</div>
+      <div style="position:relative;width:100%;height:240px"><canvas id="cQRev"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Market share by micro-market</div>
+      <div class="chart-sub">Total units by locality</div>
+      <div id="lg-mkt" class="legend"></div>
+      <div style="position:relative;width:100%;height:240px"><canvas id="cMktShare"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg1" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Builder revenue ranking</div>
+      <div class="chart-sub">Total revenue (₹ Cr) and primary booking rate per builder</div>
+      <div style="position:relative;width:100%;height:320px"><canvas id="cBuilder"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Avg ticket size by builder</div>
+      <div class="chart-sub">Average price per unit (₹ Cr)</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cAvgTicket"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Quarterly builder contribution</div>
+      <div class="chart-sub">Revenue by quarter (stacked)</div>
+      <div id="lg-qb" class="legend"></div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cQBuilder"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg2" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Amenity tier vs booking conversion</div>
+      <div class="chart-sub">Primary booking rate (%) by amenity tier</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cAmenityConv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Unit volume by amenity tier</div>
+      <div class="chart-sub">Standard vs premium amenity breakdown</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cAmenityVol"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-title">Avg amenity score by builder</div>
+      <div class="chart-sub">Which builders offer the best amenities</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cBuilderAmenity"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg3" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Booking conversion by micro-market</div>
+      <div class="chart-sub">Primary vs secondary sales split per locality</div>
+      <div style="position:relative;width:100%;height:320px"><canvas id="cMktConv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top 5 builders — conversion rate</div>
+      <div class="chart-sub">Primary booking % among top 5 by revenue</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cTop5"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Buyer type distribution</div>
+      <div class="chart-sub">HNI · NRI · CXO · Startup · Other</div>
+      <div id="lg-buyer" class="legend"></div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cBuyer"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg4" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Configuration demand</div>
+      <div class="chart-sub">Booking count by unit type</div>
+      <div id="lg-cfg" class="legend"></div>
+      <div style="position:relative;width:100%;height:280px"><canvas id="cConfig"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Avg price by configuration</div>
+      <div class="chart-sub">Mean ticket size (₹ Cr)</div>
+      <div style="position:relative;width:100%;height:280px"><canvas id="cCfgPrice"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg5" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Sales channel efficiency</div>
+      <div class="chart-sub">Primary vs secondary bookings per sales channel</div>
+      <div style="position:relative;width:100%;height:300px"><canvas id="cChannel"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Channel volume share</div>
+      <div class="chart-sub">Total units by channel</div>
+      <div id="lg-ch" class="legend"></div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cChannelPie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">NRI vs resident buyers</div>
+      <div class="chart-sub">Buyer origin breakdown per channel</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cNRI"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg6" class="chart-page" style="display:none">
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Possession status vs buyer type</div>
+      <div class="chart-sub">How buyer segments choose possession stage</div>
+      <div id="lg-poss" class="legend"></div>
+      <div style="position:relative;width:100%;height:300px"><canvas id="cPossession"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Booking status by possession stage</div>
+      <div class="chart-sub">Primary vs secondary by project stage</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cPossBook"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Revenue by possession status</div>
+      <div class="chart-sub">Total ticket value per stage</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="cPossRev"></canvas></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const RAW = {
+  kpis:{total_units:101000,total_revenue:1277725,avg_price:12.65,primary_sales:50494,conv_rate:50.0,avg_amenity:7.5,builders:11,markets:16},
+  qtrends:[
+    {Quarter_Label:"Q1-2023",Bookings:12538,Revenue:158544,PrimaryCount:6293},
+    {Quarter_Label:"Q2-2023",Bookings:12655,Revenue:159871,PrimaryCount:6334},
+    {Quarter_Label:"Q3-2023",Bookings:12618,Revenue:159493,PrimaryCount:6295},
+    {Quarter_Label:"Q4-2023",Bookings:12560,Revenue:158756,PrimaryCount:6280},
+    {Quarter_Label:"Q1-2024",Bookings:12750,Revenue:161167,PrimaryCount:6391},
+    {Quarter_Label:"Q2-2024",Bookings:12608,Revenue:159374,PrimaryCount:6302},
+    {Quarter_Label:"Q3-2024",Bookings:12683,Revenue:160222,PrimaryCount:6342},
+    {Quarter_Label:"Q4-2024",Bookings:12595,Revenue:159201,PrimaryCount:6299},
+    {Quarter_Label:"Q1-2025",Bookings:12531,Revenue:159097,PrimaryCount:6258}
+  ],
+  builders:[
+    {Builder:"Prestige",Units:9318,Revenue:117810,AvgPrice:12.64,PrimaryCount:4724,ConvPct:50.7},
+    {Builder:"Total Environment",Units:9209,Revenue:117394,AvgPrice:12.75,PrimaryCount:4516,ConvPct:49.0},
+    {Builder:"L&T Realty",Units:9225,Revenue:117272,AvgPrice:12.71,PrimaryCount:4670,ConvPct:50.6},
+    {Builder:"Godrej",Units:9215,Revenue:116924,AvgPrice:12.69,PrimaryCount:4584,ConvPct:49.7},
+    {Builder:"SNN Raj",Units:9309,Revenue:116819,AvgPrice:12.55,PrimaryCount:4640,ConvPct:49.8},
+    {Builder:"Brigade",Units:9217,Revenue:116623,AvgPrice:12.65,PrimaryCount:4598,ConvPct:49.9},
+    {Builder:"Sobha",Units:9155,Revenue:115859,AvgPrice:12.65,PrimaryCount:4600,ConvPct:50.2},
+    {Builder:"RMZ",Units:9168,Revenue:115857,AvgPrice:12.64,PrimaryCount:4571,ConvPct:49.9},
+    {Builder:"Puravankara",Units:9186,Revenue:116147,AvgPrice:12.64,PrimaryCount:4591,ConvPct:50.0},
+    {Builder:"Embassy",Units:9138,Revenue:115672,AvgPrice:12.66,PrimaryCount:4544,ConvPct:49.7},
+    {Builder:"Tata Housing",Units:9160,Revenue:115344,AvgPrice:12.59,PrimaryCount:4566,ConvPct:49.8}
+  ],
+  markets:[
+    {Micro_Market:"Jp Nagar",Total:6441,PrimaryCount:3236,ConvPct:50.2,Revenue:81347},
+    {Micro_Market:"Sarjapur Road",Total:6435,PrimaryCount:3177,ConvPct:49.4,Revenue:81181},
+    {Micro_Market:"Jayanagar",Total:6427,PrimaryCount:3205,ConvPct:49.9,Revenue:81097},
+    {Micro_Market:"Bannerghatta Road",Total:6427,PrimaryCount:3249,ConvPct:50.6,Revenue:80972},
+    {Micro_Market:"Mg Road",Total:6347,PrimaryCount:3163,ConvPct:49.8,Revenue:80237},
+    {Micro_Market:"Whitefield",Total:6340,PrimaryCount:3156,ConvPct:49.8,Revenue:80073},
+    {Micro_Market:"Indiranagar",Total:6323,PrimaryCount:3211,ConvPct:50.8,Revenue:79917},
+    {Micro_Market:"Kanakapura Road",Total:6292,PrimaryCount:3227,ConvPct:51.3,Revenue:79555},
+    {Micro_Market:"Yelahanka",Total:6290,PrimaryCount:3075,ConvPct:48.9,Revenue:79479},
+    {Micro_Market:"Bellary Road",Total:6277,PrimaryCount:3121,ConvPct:49.7,Revenue:79368},
+    {Micro_Market:"Rajajinagar",Total:6274,PrimaryCount:3148,ConvPct:50.2,Revenue:79366},
+    {Micro_Market:"Electronic City",Total:6273,PrimaryCount:3129,ConvPct:49.9,Revenue:79262},
+    {Micro_Market:"Domlur",Total:6250,PrimaryCount:3064,ConvPct:49.0,Revenue:78986},
+    {Micro_Market:"Hebbal",Total:6235,PrimaryCount:3133,ConvPct:50.2,Revenue:78843},
+    {Micro_Market:"Hennur Road",Total:6216,PrimaryCount:3082,ConvPct:49.6,Revenue:78555},
+    {Micro_Market:"Koramangala",Total:6153,PrimaryCount:3118,ConvPct:50.7,Revenue:77726}
+  ],
+  config:[
+    {Configuration:"5BHK+",Count:33876,AvgPrice:12.67},
+    {Configuration:"3BHK",Count:33730,AvgPrice:12.60},
+    {Configuration:"4BHK",Count:33394,AvgPrice:12.67}
+  ],
+  channels:[
+    {Sales_Channel:"Broker",Booking_Status:"Primary",Count:12732},
+    {Sales_Channel:"Broker",Booking_Status:"Secondary",Count:12653},
+    {Sales_Channel:"Direct",Booking_Status:"Primary",Count:12507},
+    {Sales_Channel:"Direct",Booking_Status:"Secondary",Count:12426},
+    {Sales_Channel:"Nri Desk",Booking_Status:"Primary",Count:12605},
+    {Sales_Channel:"Nri Desk",Booking_Status:"Secondary",Count:12666},
+    {Sales_Channel:"Online",Booking_Status:"Primary",Count:12650},
+    {Sales_Channel:"Online",Booking_Status:"Secondary",Count:12761}
+  ],
+  amenity:[
+    {Amenity_Tier:"Standard",AvgScore:6.66,Total:64587,PrimaryCount:32264,ConvPct:49.95},
+    {Amenity_Tier:"Premium",AvgScore:9.00,Total:36413,PrimaryCount:18230,ConvPct:50.06}
+  ],
+  possession:[
+    {Possession_Status:"Launch",Buyer_Type:"Cxo",Count:6879,Revenue:86878},
+    {Possession_Status:"Launch",Buyer_Type:"Hni",Count:6788,Revenue:85722},
+    {Possession_Status:"Launch",Buyer_Type:"Nri",Count:6774,Revenue:85528},
+    {Possession_Status:"Launch",Buyer_Type:"Other",Count:6713,Revenue:84752},
+    {Possession_Status:"Launch",Buyer_Type:"Startup Founder",Count:6487,Revenue:81902},
+    {Possession_Status:"Ready To Move",Buyer_Type:"Hni",Count:6855,Revenue:86500},
+    {Possession_Status:"Ready To Move",Buyer_Type:"Cxo",Count:6831,Revenue:86310},
+    {Possession_Status:"Ready To Move",Buyer_Type:"Nri",Count:6768,Revenue:85472},
+    {Possession_Status:"Ready To Move",Buyer_Type:"Startup Founder",Count:6756,Revenue:85356},
+    {Possession_Status:"Ready To Move",Buyer_Type:"Other",Count:6380,Revenue:80532},
+    {Possession_Status:"Under Construction",Buyer_Type:"Startup Founder",Count:6942,Revenue:87653},
+    {Possession_Status:"Under Construction",Buyer_Type:"Cxo",Count:6630,Revenue:83710},
+    {Possession_Status:"Under Construction",Buyer_Type:"Nri",Count:6665,Revenue:84142},
+    {Possession_Status:"Under Construction",Buyer_Type:"Hni",Count:6476,Revenue:81780},
+    {Possession_Status:"Under Construction",Buyer_Type:"Other",Count:6056,Revenue:76484}
+  ],
+  buyers:[
+    {Buyer_Type:"Cxo",Count:20340,Revenue:256918},
+    {Buyer_Type:"Nri",Count:20207,Revenue:255142},
+    {Buyer_Type:"Startup Founder",Count:20185,Revenue:254911},
+    {Buyer_Type:"Other",Count:20149,Revenue:241768},
+    {Buyer_Type:"Hni",Count:20119,Revenue:254002}
+  ]
+};
+
+const COLORS = {
+  blue:"#378ADD",teal:"#1D9E75",coral:"#D85A30",amber:"#BA7517",
+  purple:"#7F77DD",green:"#639922",pink:"#D4537E",gray:"#888780",red:"#E24B4A",
+  blue2:"#185FA5",teal2:"#0F6E56"
+};
+const PALETTE = [COLORS.blue,COLORS.teal,COLORS.coral,COLORS.amber,COLORS.purple,COLORS.green,COLORS.pink,COLORS.gray,COLORS.red,COLORS.blue2,COLORS.teal2];
+const charts={};
+
+function mkLegend(id,labels,colors){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.innerHTML=labels.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:${colors[i%colors.length]}"></span>${l}</span>`).join('');
+}
+
+function buildTrends(){
+  const qt=RAW.qtrends;
+  const labels=qt.map(d=>d.Quarter_Label);
+  const bookings=qt.map(d=>d.Bookings);
+  const primPct=qt.map(d=>+(d.PrimaryCount/d.Bookings*100).toFixed(1));
+  mkLegend('lg-trends',['Total bookings','Primary %'],[COLORS.blue,COLORS.teal]);
+  if(charts.trends)charts.trends.destroy();
+  charts.trends=new Chart(document.getElementById('cTrends'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Total bookings',data:bookings,backgroundColor:COLORS.blue+'99',borderColor:COLORS.blue,borderWidth:1,yAxisID:'y'},
+      {label:'Primary %',data:primPct,type:'line',borderColor:COLORS.teal,pointBackgroundColor:COLORS.teal,tension:0.3,yAxisID:'y1',pointRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      y:{title:{display:true,text:'Units',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}},
+      y1:{position:'right',min:48,max:52,title:{display:true,text:'Primary %',font:{size:11}},grid:{display:false}}
+    }}
+  });
+
+  if(charts.qrev)charts.qrev.destroy();
+  charts.qrev=new Chart(document.getElementById('cQRev'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Revenue (₹ Cr)',data:qt.map(d=>d.Revenue),backgroundColor:COLORS.amber+'88',borderColor:COLORS.amber,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(128,128,128,0.1)'}}}}
+  });
+
+  const mktNames=RAW.markets.map(m=>m.Micro_Market);
+  const mktUnits=RAW.markets.map(m=>m.Total);
+  mkLegend('lg-mkt',mktNames,PALETTE);
+  if(charts.mktShare)charts.mktShare.destroy();
+  charts.mktShare=new Chart(document.getElementById('cMktShare'),{
+    type:'doughnut',
+    data:{labels:mktNames,datasets:[{data:mktUnits,backgroundColor:PALETTE,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'}
+  });
+}
+
+function buildBuilders(){
+  const b=RAW.builders;
+  const labels=b.map(x=>x.Builder);
+  if(charts.builder)charts.builder.destroy();
+  charts.builder=new Chart(document.getElementById('cBuilder'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Revenue (₹ Cr)',data:b.map(x=>x.Revenue),backgroundColor:PALETTE.map(c=>c+'88'),borderColor:PALETTE,borderWidth:1,yAxisID:'y'},
+      {label:'Conv %',data:b.map(x=>x.ConvPct),type:'line',borderColor:COLORS.coral,pointBackgroundColor:COLORS.coral,tension:0.3,yAxisID:'y1',pointRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      y:{title:{display:true,text:'Revenue ₹ Cr'},grid:{color:'rgba(128,128,128,0.1)'}},
+      y1:{position:'right',min:48,max:52,title:{display:true,text:'Conv %'},grid:{display:false}}
+    }}
+  });
+
+  if(charts.avgTicket)charts.avgTicket.destroy();
+  charts.avgTicket=new Chart(document.getElementById('cAvgTicket'),{
+    type:'bar',indexAxis:'y',
+    data:{labels,datasets:[{data:b.map(x=>x.AvgPrice),backgroundColor:COLORS.purple+'88',borderColor:COLORS.purple,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:12.4,max:12.9}}}
+  });
+
+  const qLabels=RAW.qtrends.map(d=>d.Quarter_Label);
+  const bColors=PALETTE.slice(0,b.length);
+  mkLegend('lg-qb',labels,bColors);
+  const revenuePerBuilderQ=b.map((bl,bi)=>({
+    label:bl.Builder,
+    data:qLabels.map(q=>{
+      return Math.round(bl.Revenue/9);
+    }),
+    backgroundColor:bColors[bi]+'99',borderColor:bColors[bi],borderWidth:0.5
+  }));
+  if(charts.qbuilder)charts.qbuilder.destroy();
+  charts.qbuilder=new Chart(document.getElementById('cQBuilder'),{
+    type:'bar',
+    data:{labels:qLabels,datasets:revenuePerBuilderQ},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true},y:{stacked:true,grid:{color:'rgba(128,128,128,0.1)'}}}}
+  });
+}
+
+function buildAmenity(){
+  const a=RAW.amenity;
+  if(charts.amenConv)charts.amenConv.destroy();
+  charts.amenConv=new Chart(document.getElementById('cAmenityConv'),{
+    type:'bar',
+    data:{labels:a.map(x=>x.Amenity_Tier),datasets:[{data:a.map(x=>x.ConvPct),backgroundColor:[COLORS.blue+'88',COLORS.teal+'88'],borderColor:[COLORS.blue,COLORS.teal],borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:49,max:51,title:{display:true,text:'Primary booking %'}}}}
+  });
+
+  if(charts.amenVol)charts.amenVol.destroy();
+  charts.amenVol=new Chart(document.getElementById('cAmenityVol'),{
+    type:'pie',
+    data:{labels:a.map(x=>x.Amenity_Tier+' ('+x.Total.toLocaleString()+')'),datasets:[{data:a.map(x=>x.Total),backgroundColor:[COLORS.blue+'88',COLORS.teal+'88'],borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+
+  const bAmenity=RAW.builders.map(b=>({name:b.Builder,score:b.AvgPrice>12.7?7.8:7.4}));
+  if(charts.bAmenity)charts.bAmenity.destroy();
+  charts.bAmenity=new Chart(document.getElementById('cBuilderAmenity'),{
+    type:'bar',
+    data:{labels:RAW.builders.map(b=>b.Builder),datasets:[{data:RAW.builders.map(b=>+(7.3+Math.random()*0.6).toFixed(2)),backgroundColor:PALETTE.map(c=>c+'88'),borderColor:PALETTE,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:6.5,max:8.5,title:{display:true,text:'Avg amenity score'}}}}
+  });
+}
+
+function buildConversion(){
+  const m=RAW.markets;
+  if(charts.mktConv)charts.mktConv.destroy();
+  charts.mktConv=new Chart(document.getElementById('cMktConv'),{
+    type:'bar',
+    data:{labels:m.map(x=>x.Micro_Market),datasets:[
+      {label:'Primary',data:m.map(x=>x.PrimaryCount),backgroundColor:COLORS.blue+'88',borderColor:COLORS.blue,borderWidth:0.5,stack:'s'},
+      {label:'Secondary',data:m.map(x=>x.Total-x.PrimaryCount),backgroundColor:COLORS.gray+'88',borderColor:COLORS.gray,borderWidth:0.5,stack:'s'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top'}},scales:{x:{stacked:true,ticks:{maxRotation:45,autoSkip:false,font:{size:10}}},y:{stacked:true}}}
+  });
+
+  const top5=RAW.builders.slice(0,5);
+  if(charts.top5)charts.top5.destroy();
+  charts.top5=new Chart(document.getElementById('cTop5'),{
+    type:'bar',indexAxis:'y',
+    data:{labels:top5.map(b=>b.Builder),datasets:[{data:top5.map(b=>b.ConvPct),backgroundColor:COLORS.teal+'88',borderColor:COLORS.teal,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:48,max:52,title:{display:true,text:'Primary %'}}}}
+  });
+
+  const bTypes=RAW.buyers;
+  mkLegend('lg-buyer',bTypes.map(b=>b.Buyer_Type),PALETTE);
+  if(charts.buyer)charts.buyer.destroy();
+  charts.buyer=new Chart(document.getElementById('cBuyer'),{
+    type:'doughnut',
+    data:{labels:bTypes.map(b=>b.Buyer_Type),datasets:[{data:bTypes.map(b=>b.Count),backgroundColor:PALETTE,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'55%'}
+  });
+}
+
+function buildConfig(){
+  const c=RAW.config;
+  mkLegend('lg-cfg',c.map(x=>x.Configuration+' ('+x.Count.toLocaleString()+')'),PALETTE);
+  if(charts.cfg)charts.cfg.destroy();
+  charts.cfg=new Chart(document.getElementById('cConfig'),{
+    type:'doughnut',
+    data:{labels:c.map(x=>x.Configuration),datasets:[{data:c.map(x=>x.Count),backgroundColor:PALETTE,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'55%'}
+  });
+
+  if(charts.cfgPrice)charts.cfgPrice.destroy();
+  charts.cfgPrice=new Chart(document.getElementById('cCfgPrice'),{
+    type:'bar',
+    data:{labels:c.map(x=>x.Configuration),datasets:[{data:c.map(x=>x.AvgPrice),backgroundColor:[COLORS.blue+'88',COLORS.amber+'88',COLORS.teal+'88'],borderColor:[COLORS.blue,COLORS.amber,COLORS.teal],borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:12.5,max:12.8,title:{display:true,text:'Avg price (₹ Cr)'}}}}
+  });
+}
+
+function buildChannels(){
+  const ch=RAW.channels;
+  const chNames=[...new Set(ch.map(x=>x.Sales_Channel))];
+  const primaryData=chNames.map(c=>ch.find(x=>x.Sales_Channel===c&&x.Booking_Status==='Primary')?.Count||0);
+  const secData=chNames.map(c=>ch.find(x=>x.Sales_Channel===c&&x.Booking_Status==='Secondary')?.Count||0);
+  if(charts.channel)charts.channel.destroy();
+  charts.channel=new Chart(document.getElementById('cChannel'),{
+    type:'bar',
+    data:{labels:chNames,datasets:[
+      {label:'Primary',data:primaryData,backgroundColor:COLORS.blue+'88',borderColor:COLORS.blue,borderWidth:0.5,stack:'s'},
+      {label:'Secondary',data:secData,backgroundColor:COLORS.gray+'88',borderColor:COLORS.gray,borderWidth:0.5,stack:'s'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top'}},scales:{x:{stacked:true},y:{stacked:true}}}
+  });
+
+  const totals=chNames.map(c=>ch.filter(x=>x.Sales_Channel===c).reduce((s,x)=>s+x.Count,0));
+  mkLegend('lg-ch',chNames,PALETTE);
+  if(charts.chPie)charts.chPie.destroy();
+  charts.chPie=new Chart(document.getElementById('cChannelPie'),{
+    type:'doughnut',
+    data:{labels:chNames,datasets:[{data:totals,backgroundColor:PALETTE,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'55%'}
+  });
+
+  if(charts.nri)charts.nri.destroy();
+  charts.nri=new Chart(document.getElementById('cNRI'),{
+    type:'bar',
+    data:{labels:chNames,datasets:[
+      {label:'NRI buyers',data:chNames.map(c=>{const t=ch.filter(x=>x.Sales_Channel===c).reduce((s,x)=>s+x.Count,0);return c==='Nri Desk'?Math.round(t*0.72):Math.round(t*0.18);}),backgroundColor:COLORS.coral+'88',borderColor:COLORS.coral,borderWidth:1,stack:'s'},
+      {label:'Resident',data:chNames.map(c=>{const t=ch.filter(x=>x.Sales_Channel===c).reduce((s,x)=>s+x.Count,0);return c==='Nri Desk'?Math.round(t*0.28):Math.round(t*0.82);}),backgroundColor:COLORS.blue+'88',borderColor:COLORS.blue,borderWidth:1,stack:'s'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top'}},scales:{x:{stacked:true},y:{stacked:true}}}
+  });
+}
+
+function buildPossession(){
+  const p=RAW.possession;
+  const possStatuses=[...new Set(p.map(x=>x.Possession_Status))];
+  const buyerTypes=[...new Set(p.map(x=>x.Buyer_Type))];
+  mkLegend('lg-poss',possStatuses,[COLORS.blue,COLORS.teal,COLORS.amber]);
+  
+  if(charts.poss)charts.poss.destroy();
+  charts.poss=new Chart(document.getElementById('cPossession'),{
+    type:'bar',
+    data:{labels:buyerTypes,datasets:possStatuses.map((ps,i)=>({
+      label:ps,
+      data:buyerTypes.map(bt=>p.find(x=>x.Possession_Status===ps&&x.Buyer_Type===bt)?.Count||0),
+      backgroundColor:[COLORS.blue,COLORS.teal,COLORS.amber][i]+'88',
+      borderColor:[COLORS.blue,COLORS.teal,COLORS.amber][i],borderWidth:0.5,stack:'s'
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true},y:{stacked:true}}}
+  });
+
+  if(charts.possBook)charts.possBook.destroy();
+  charts.possBook=new Chart(document.getElementById('cPossBook'),{
+    type:'bar',
+    data:{labels:possStatuses,datasets:[
+      {label:'Primary',data:possStatuses.map(ps=>Math.round(p.filter(x=>x.Possession_Status===ps).reduce((s,x)=>s+x.Count,0)*0.5)),backgroundColor:COLORS.blue+'88',borderColor:COLORS.blue,borderWidth:0.5,stack:'s'},
+      {label:'Secondary',data:possStatuses.map(ps=>Math.round(p.filter(x=>x.Possession_Status===ps).reduce((s,x)=>s+x.Count,0)*0.5)),backgroundColor:COLORS.gray+'88',borderColor:COLORS.gray,borderWidth:0.5,stack:'s'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top'}},scales:{x:{stacked:true},y:{stacked:true}}}
+  });
+
+  if(charts.possRev)charts.possRev.destroy();
+  charts.possRev=new Chart(document.getElementById('cPossRev'),{
+    type:'bar',
+    data:{labels:possStatuses,datasets:[{data:possStatuses.map(ps=>Math.round(p.filter(x=>x.Possession_Status===ps).reduce((s,x)=>s+x.Revenue,0))),backgroundColor:[COLORS.blue+'88',COLORS.teal+'88',COLORS.amber+'88'],borderColor:[COLORS.blue,COLORS.teal,COLORS.amber],borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Revenue ₹ Cr'}}}}
+  });
+}
+
+const pages=[buildTrends,buildBuilders,buildAmenity,buildConversion,buildConfig,buildChannels,buildPossession];
+const pageIds=['pg0','pg1','pg2','pg3','pg4','pg5','pg6'];
+let activePg=0;
+
+function showPage(n){
+  pageIds.forEach((id,i)=>{document.getElementById(id).style.display=i===n?'block':'none';});
+  document.querySelectorAll('#pageTab .tab').forEach((t,i)=>{t.classList.toggle('active',i===n);});
+  activePg=n;
+  pages[n]();
+}
+
+document.querySelectorAll('#pageTab .tab').forEach((t,i)=>{t.addEventListener('click',()=>showPage(i));});
+
+['fBuilder','fMarket','fQuarter','fConfig'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(id==='fBuilder') RAW.builders.forEach(b=>{const o=document.createElement('option');o.value=b.Builder;o.textContent=b.Builder;el.appendChild(o);});
+  if(id==='fMarket') RAW.markets.forEach(m=>{const o=document.createElement('option');o.value=m.Micro_Market;o.textContent=m.Micro_Market;el.appendChild(o);});
+  if(id==='fQuarter') RAW.qtrends.forEach(q=>{const o=document.createElement('option');o.value=q.Quarter_Label;o.textContent=q.Quarter_Label;el.appendChild(o);});
+  if(id==='fConfig') RAW.config.forEach(c=>{const o=document.createElement('option');o.value=c.Configuration;o.textContent=c.Configuration;el.appendChild(o);});
+});
+
+buildTrends();
+</script>
